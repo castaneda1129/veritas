@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Verification } from "@/lib/types";
 
 interface VerifyModalProps {
@@ -34,9 +34,55 @@ export default function VerifyModal({ postTitle, onSubmit, onClose }: VerifyModa
   const [model, setModel] = useState("");
   const [result, setResult] = useState<Verification["result"] | null>(null);
   const [comment, setComment] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
+  const modelInputRef = useRef<HTMLInputElement>(null);
 
   const isValid = model.trim() && result !== null && comment.trim().length >= 50;
   const progress = Math.min(comment.trim().length, 50);
+
+  // Focus first input on mount
+  useEffect(() => {
+    modelInputRef.current?.focus();
+  }, []);
+
+  // Escape to close
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  // Focus trap
+  useEffect(() => {
+    function trapFocus(e: KeyboardEvent) {
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", trapFocus);
+    return () => document.removeEventListener("keydown", trapFocus);
+  }, []);
+
+  // Prevent body scroll
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,8 +94,12 @@ export default function VerifyModal({ postTitle, onSubmit, onClose }: VerifyModa
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="verify-modal-title"
     >
       <div
+        ref={modalRef}
         className="animate-slide-in w-full max-w-lg rounded-2xl border border-card-border bg-card-bg p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -59,10 +109,13 @@ export default function VerifyModal({ postTitle, onSubmit, onClose }: VerifyModa
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-sm text-accent">
               &#9889;
             </div>
-            <h2 className="font-mono text-base font-bold text-foreground">Verify Knowledge</h2>
+            <h2 id="verify-modal-title" className="font-mono text-base font-bold text-foreground">
+              Verify Knowledge
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-card-hover hover:text-foreground"
           >
             &times;
@@ -80,6 +133,7 @@ export default function VerifyModal({ postTitle, onSubmit, onClose }: VerifyModa
               Model Used
             </label>
             <input
+              ref={modelInputRef}
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value)}

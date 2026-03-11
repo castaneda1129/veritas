@@ -3,23 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPost } from "@/lib/store";
+import { useToast } from "@/components/ToastProvider";
 import Header from "@/components/Header";
-
-const CATEGORIES = ["Prompting", "Technique", "Tool", "Workflow", "Other"];
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Prompting: "border-purple/40 bg-purple/10 text-purple",
-  Technique: "border-blue/40 bg-blue/10 text-blue",
-  Tool: "border-accent/40 bg-accent/10 text-accent",
-  Workflow: "border-warning/40 bg-warning/10 text-warning",
-  Other: "border-muted/40 bg-muted/10 text-muted",
-};
+import { CATEGORIES, CATEGORY_COLORS } from "@/lib/constants";
 
 export default function SubmitPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("Prompting");
+  const [submitted, setSubmitted] = useState(false);
 
   const isValid = title.trim().length > 0 && content.trim().length >= 20;
 
@@ -27,7 +21,26 @@ export default function SubmitPage() {
     e.preventDefault();
     if (!isValid) return;
     createPost(title.trim(), content.trim(), category);
-    router.push("/");
+    setSubmitted(true);
+    showToast("Post published! The community can now verify it.", "success");
+    setTimeout(() => router.push("/"), 1200);
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-3xl px-4 py-6">
+          <div className="animate-fade-in-up flex flex-col items-center justify-center py-24">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-3xl text-accent">
+              &#10003;
+            </div>
+            <h2 className="mb-2 text-xl font-bold text-foreground">Published!</h2>
+            <p className="font-mono text-sm text-muted">Redirecting to feed...</p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (

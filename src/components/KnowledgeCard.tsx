@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Post } from "@/lib/types";
 import {
   toggleBookmark,
@@ -12,7 +13,9 @@ import {
   markUserVerified,
 } from "@/lib/store";
 import { Verification } from "@/lib/types";
+import { useToast } from "./ToastProvider";
 import VerifyModal from "./VerifyModal";
+import VerificationBar from "./VerificationBar";
 
 interface KnowledgeCardProps {
   post: Post;
@@ -41,6 +44,7 @@ function getMomentumLevel(post: Post): "hot" | "rising" | "warm" | null {
 
 export default function KnowledgeCard({ post, onUpdate, rank }: KnowledgeCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const { showToast } = useToast();
   const bookmarked = isBookmarked(post);
   const recommended = isRecommended(post);
   const verified = hasUserVerified(post);
@@ -51,18 +55,23 @@ export default function KnowledgeCard({ post, onUpdate, rank }: KnowledgeCardPro
   const bookmarkedCount = post.bookmarks.length;
 
   function handleBookmark() {
+    const wasBookmarked = bookmarked;
     onUpdate(toggleBookmark(post.id));
+    showToast(wasBookmarked ? "Removed from saved" : "Saved for later", "success");
   }
 
   function handleVerify(model: string, result: Verification["result"], comment: string) {
     markUserVerified(post.id);
     onUpdate(addVerification(post.id, model, result, comment));
     setShowModal(false);
+    showToast("Verification submitted", "success");
   }
 
   function handleRecommend() {
     if (!verified) return;
+    const wasRecommended = recommended;
     onUpdate(toggleRecommendation(post.id));
+    showToast(wasRecommended ? "Recommendation removed" : "Recommended!", "success");
   }
 
   const isHot = momentum === "hot";
@@ -104,15 +113,17 @@ export default function KnowledgeCard({ post, onUpdate, rank }: KnowledgeCardPro
         </div>
 
         {/* Title */}
-        <h3
-          className={`mb-2 text-[15px] font-semibold leading-snug tracking-tight transition-colors ${
-            isHot
-              ? "text-foreground group-hover:text-hot"
-              : "text-foreground group-hover:text-accent"
-          }`}
-        >
-          {post.title}
-        </h3>
+        <Link href={`/knowledge/${post.id}`}>
+          <h3
+            className={`mb-2 text-[15px] font-semibold leading-snug tracking-tight transition-colors ${
+              isHot
+                ? "text-foreground group-hover:text-hot"
+                : "text-foreground group-hover:text-accent"
+            }`}
+          >
+            {post.title}
+          </h3>
+        </Link>
 
         {/* Content */}
         <p className="mb-4 text-[13px] leading-relaxed text-muted/80 line-clamp-2">
@@ -120,7 +131,7 @@ export default function KnowledgeCard({ post, onUpdate, rank }: KnowledgeCardPro
         </p>
 
         {/* Stats bar */}
-        <div className="mb-4 flex items-center gap-4">
+        <div className="mb-3 flex items-center gap-4">
           <StatPill
             icon="&#9889;"
             count={triedCount}
@@ -146,6 +157,13 @@ export default function KnowledgeCard({ post, onUpdate, rank }: KnowledgeCardPro
             bgColor="bg-warning/8"
           />
         </div>
+
+        {/* Verification breakdown bar */}
+        {triedCount > 0 && (
+          <div className="mb-4">
+            <VerificationBar verifications={post.verifications} />
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 border-t border-card-border/60 pt-3">
