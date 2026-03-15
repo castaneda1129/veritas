@@ -25,6 +25,11 @@ export function getPosts(): Post[] {
   return raw ? JSON.parse(raw) : [];
 }
 
+export function getPostById(id: string): Post | null {
+  const posts = getPosts();
+  return posts.find((p) => p.id === id) ?? null;
+}
+
 function savePosts(posts: Post[]) {
   localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
 }

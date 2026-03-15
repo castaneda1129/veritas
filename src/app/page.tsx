@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Post } from "@/lib/types";
 import { getPosts } from "@/lib/store";
 import Header from "@/components/Header";
 import KnowledgeCard from "@/components/KnowledgeCard";
+import { CATEGORIES, CATEGORY_COLORS } from "@/lib/constants";
 
 function getActivitySummary(posts: Post[]) {
   const totalVerifications = posts.reduce((sum, p) => sum + p.verifications.length, 0);
@@ -16,11 +17,26 @@ function getActivitySummary(posts: Post[]) {
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
 
   useEffect(() => {
     setPosts(getPosts());
     setMounted(true);
   }, []);
+
+  const filtered = useMemo(() => {
+    return posts
+      .filter((p) => activeCategory === "All" || p.category === activeCategory)
+      .sort((a, b) => {
+        if (sortBy === "popular") {
+          const scoreA = a.verifications.length + a.recommendations.length + a.bookmarks.length;
+          const scoreB = b.verifications.length + b.recommendations.length + b.bookmarks.length;
+          return scoreB - scoreA;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [posts, activeCategory, sortBy]);
 
   if (!mounted) {
     return (
@@ -74,14 +90,70 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {posts.length === 0 ? (
+        {/* Filter & Sort bar */}
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setActiveCategory("All")}
+              className={`rounded-lg border px-2.5 py-1.5 font-mono text-[11px] font-semibold transition-all duration-200 ${
+                activeCategory === "All"
+                  ? "border-accent/40 bg-accent/10 text-accent"
+                  : "border-card-border text-muted hover:border-muted/50 hover:bg-card-hover"
+              }`}
+            >
+              All
+            </button>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`rounded-lg border px-2.5 py-1.5 font-mono text-[11px] font-semibold transition-all duration-200 ${
+                  activeCategory === cat
+                    ? CATEGORY_COLORS[cat]
+                    : "border-card-border text-muted hover:border-muted/50 hover:bg-card-hover"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto flex gap-1">
+            <button
+              onClick={() => setSortBy("recent")}
+              className={`rounded-lg px-2.5 py-1.5 font-mono text-[11px] transition-all duration-200 ${
+                sortBy === "recent"
+                  ? "bg-card-hover font-semibold text-foreground"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              New
+            </button>
+            <button
+              onClick={() => setSortBy("popular")}
+              className={`rounded-lg px-2.5 py-1.5 font-mono text-[11px] transition-all duration-200 ${
+                sortBy === "popular"
+                  ? "bg-card-hover font-semibold text-foreground"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              Popular
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-card-border bg-card-bg p-12 text-center">
             <div className="mb-3 text-4xl">&#128161;</div>
-            <p className="font-mono text-sm text-muted">No posts yet. Be the first to share something.</p>
+            <p className="font-mono text-sm text-muted">
+              {posts.length === 0
+                ? "No posts yet. Be the first to share something."
+                : `No posts in ${activeCategory} yet.`}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {posts.map((post, i) => (
+            {filtered.map((post, i) => (
               <KnowledgeCard key={post.id} post={post} onUpdate={setPosts} rank={i + 1} />
             ))}
           </div>
